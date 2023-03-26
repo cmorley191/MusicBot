@@ -70,12 +70,11 @@ public class QueueCmd extends MusicCommand
         // TEMPORARY -- can only show one queue right now, because JDA-Utilities paginator has bug preventing multiple paginators
         AudioHandler ah = (AudioHandler)event.getGuild().getAudioManager().getSendingHandler();
         if (ah.playingFromBackgroundQueue() || (ah.getQueue().isEmpty() && !ah.getBackgroundQueue().isEmpty())) {
+            showQueue(event, false, false);
             showQueue(event, true, true);
         } else {
             showQueue(event, false, true);
-            if (!ah.getBackgroundQueue().isEmpty() || ah.getQueue().isEmpty()) {
-                showQueue(event, true, false);
-            }
+            showQueue(event, true, false);
         }
     }
 
@@ -89,18 +88,23 @@ public class QueueCmd extends MusicCommand
         AudioHandler ah = (AudioHandler)event.getGuild().getAudioManager().getSendingHandler();
         List<QueuedTrack> list = (backgroundQueue) ? ah.getBackgroundQueue().getList() : ah.getQueue().getList();
         String queueName = (backgroundQueue) ? "the background queue" : "the queue";
-        if(list.isEmpty() && (backgroundQueue == ah.playingFromBackgroundQueue()))
+        if(list.isEmpty())
         {
-            Message nowp = ah.getNowPlaying(event.getJDA());
-            Message nonowp = ah.getNoMusicPlaying(event.getJDA());
-            Message built = new MessageBuilder()
-                    .setContent(bot.getWarning(event) + " There is no music in "+queueName+"!")
-                    .setEmbeds((nowp==null ? nonowp : nowp).getEmbeds().get(0)).build();
-            event.reply(built, m -> 
-            {
-                if(nowp!=null)
-                    bot.getNowplayingHandler().setLastNPMessage(m);
-            });
+            String content = bot.getWarning(event) + " There is no music in "+queueName+"!";
+            if (backgroundQueue == !ah.playingFromBackgroundQueue()) {
+                event.reply(content);
+            } else {
+                Message nowp = ah.getNowPlaying(event.getJDA());
+                Message nonowp = ah.getNoMusicPlaying(event.getJDA());
+                Message built = new MessageBuilder()
+                        .setContent(content)
+                        .setEmbeds((nowp==null ? nonowp : nowp).getEmbeds().get(0)).build();
+                event.reply(built, m -> 
+                {
+                    if(nowp!=null)
+                        bot.getNowplayingHandler().setLastNPMessage(m);
+                });
+            }
             return;
         }
         String[] songs = new String[list.size()];
@@ -130,11 +134,22 @@ public class QueueCmd extends MusicCommand
     private String getQueueTitle(AudioHandler ah, boolean backgroundQueue, String success, int songslength, long total, RepeatMode repeatmode)
     {
         StringBuilder sb = new StringBuilder();
-        if(ah.getPlayer().getPlayingTrack()!=null && (backgroundQueue == ah.playingFromBackgroundQueue()))
+        boolean playingTrackFromQueue = ah.getPlayer().getPlayingTrack()!=null && (backgroundQueue == ah.playingFromBackgroundQueue());
+        boolean backgroundQueuePaused = backgroundQueue && ah.getLatestActiveBackgroundTrack() != null;
+        if(playingTrackFromQueue || backgroundQueuePaused)
         {
-            sb.append(ah.getStatusEmoji()).append(" **")
-                    .append(ah.getPlayer().getPlayingTrack().getInfo().title).append("**\n");
-        }
+            sb.append(playingTrackFromQueue ? ah.getStatusEmoji() : AudioHandler.PAUSE_EMOJI);
+            if (backgroundQueue) sb.append("BG:");
+
+            AudioTrack trackPlaying = (playingTrackFromQueue) ? ah.getPlayer().getPlayingTrack() : ah.getLatestActiveBackgroundTrack();
+            sb.append(" **")
+                .append(trackPlaying.getInfo().title)
+                .append("**`[")
+                .append(SeekCmd.timeMsToFriendlyOutputTimestampString(trackPlaying.getPosition() / 1000 * 1000)) // trim milliseconds
+                .append("/")
+                .append(SeekCmd.timeMsToFriendlyOutputTimestampString(trackPlaying.getDuration() / 1000 * 1000))
+                .append("]`\n");
+        } 
         return FormatUtil.filter(sb.append(success).append(" Current "+(backgroundQueue ? "Background Queue" : "Queue")+" | ").append(songslength)
                 .append(" entries | `").append(FormatUtil.formatTime(total)).append("` ")
                 .append(repeatmode.getEmoji() != null ? "| "+repeatmode.getEmoji() : "").toString());

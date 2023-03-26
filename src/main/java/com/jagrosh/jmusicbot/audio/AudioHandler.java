@@ -119,6 +119,10 @@ public class AudioHandler extends AudioEventAdapter implements AudioSendHandler
         return backgroundQueue;
     }
 
+    public AudioTrack getLatestActiveBackgroundTrack() {
+        return latestActiveBackgroundTrack;
+    }
+
     public boolean playingFromBackgroundQueue() 
     {
         return audioPlayer.getPlayingTrack() != null && latestActiveBackgroundTrack != null && audioPlayer.getPlayingTrack() == latestActiveBackgroundTrack;
@@ -225,22 +229,24 @@ public class AudioHandler extends AudioEventAdapter implements AudioSendHandler
             // note that REPLACED is *also* used when the track is skipped, but skipTrack() makes sure we don't keep it around in that case.
         }
         
-        if(queue.isEmpty() && endReason!=AudioTrackEndReason.REPLACED)
-        {
-            if(!playFromBackground() && !playFromDefault())
+        if (endReason!=AudioTrackEndReason.REPLACED) {
+            if(queue.isEmpty())
             {
-                manager.getBot().getNowplayingHandler().onTrackUpdate(guildId, null, this);
-                if(!manager.getBot().getConfig().getStay())
-                    manager.getBot().closeAudioConnection(guildId);
-                // unpause, in the case when the player was paused and the track has been skipped.
-                // this is to prevent the player being paused next time it's being used.
-                player.setPaused(false);
+                if(!playFromBackground() && !playFromDefault())
+                {
+                    manager.getBot().getNowplayingHandler().onTrackUpdate(guildId, null, this);
+                    if(!manager.getBot().getConfig().getStay())
+                        manager.getBot().closeAudioConnection(guildId);
+                    // unpause, in the case when the player was paused and the track has been skipped.
+                    // this is to prevent the player being paused next time it's being used.
+                    player.setPaused(false);
+                }
             }
-        }
-        else if (endReason.mayStartNext)
-        {
-            QueuedTrack qt = queue.pull();
-            player.playTrack(qt.getTrack());
+            else
+            {
+                QueuedTrack qt = queue.pull();
+                player.playTrack(qt.getTrack());
+            }
         }
     }
 
