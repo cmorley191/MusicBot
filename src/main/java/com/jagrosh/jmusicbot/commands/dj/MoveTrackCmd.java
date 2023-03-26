@@ -18,7 +18,7 @@ public class MoveTrackCmd extends DJCommand
     {
         super(bot);
         this.name = "movetrack";
-        this.help = "move a track in the current queue to a different position";
+        this.help = "move a track in the currently playing queue to a different position";
         this.arguments = "<from> <to>";
         this.aliases = bot.getConfig().getAliases(this.name);
         this.bePlaying = true;
@@ -57,16 +57,17 @@ public class MoveTrackCmd extends DJCommand
 
         // Validate that from and to are available
         AudioHandler handler = (AudioHandler) event.getGuild().getAudioManager().getSendingHandler();
-        FairQueue<QueuedTrack> queue = handler.getQueue();
+        FairQueue<QueuedTrack> queue = (handler.playingFromBackgroundQueue()) ? handler.getBackgroundQueue() : handler.getQueue();
+        String queueName = (handler.playingFromBackgroundQueue()) ? "the background queue" : "the queue";
         if (isUnavailablePosition(queue, from))
         {
-            String reply = String.format("`%d` is not a valid position in the queue!", from);
+            String reply = String.format("`%d` is not a valid position in "+queueName+"!", from);
             event.reply(bot.getError(event)+reply);
             return;
         }
         if (isUnavailablePosition(queue, to))
         {
-            String reply = String.format("`%d` is not a valid position in the queue!", to);
+            String reply = String.format("`%d` is not a valid position in "+queueName+"!", to);
             event.reply(bot.getError(event)+reply);
             return;
         }
@@ -74,7 +75,7 @@ public class MoveTrackCmd extends DJCommand
         // Move the track
         QueuedTrack track = queue.moveItem(from - 1, to - 1);
         String trackTitle = track.getTrack().getInfo().title;
-        String reply = String.format("Moved **%s** from position `%d` to `%d`.", trackTitle, from, to);
+        String reply = String.format("Moved **%s** from position `%d` to `%d` in "+queueName+".", trackTitle, from, to);
         event.reply(bot.getSuccess(event)+reply);
     }
 

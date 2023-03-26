@@ -45,7 +45,7 @@ public class SkipCmd extends MusicCommand
         if(event.getAuthor().getIdLong() == rm.getOwner())
         {
             event.reply(bot.getSuccess(event)+" Skipped **"+handler.getPlayer().getPlayingTrack().getInfo().title+"**");
-            handler.getPlayer().stopTrack();
+            handler.skipCurrentTrack();
         }
         else
         {
@@ -67,7 +67,7 @@ public class SkipCmd extends MusicCommand
             {
                 msg += "\n" + bot.getSuccess(event) + " Skipped **" + handler.getPlayer().getPlayingTrack().getInfo().title
                     + "** " + (rm.getOwner() == 0L ? "(autoplay)" : "(requested by **" + rm.user.username + "**)");
-                handler.getPlayer().stopTrack();
+                handler.skipCurrentTrack();
             }
             event.reply(msg);
         }

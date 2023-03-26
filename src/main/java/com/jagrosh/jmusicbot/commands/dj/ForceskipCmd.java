@@ -43,6 +43,6 @@ public class ForceskipCmd extends DJCommand
         RequestMetadata rm = handler.getRequestMetadata();
         event.reply(bot.getSuccess(event)+" Skipped **"+handler.getPlayer().getPlayingTrack().getInfo().title
                 +"** "+(rm.getOwner() == 0L ? "(autoplay)" : "(requested by **" + rm.user.username + "**)"));
-        handler.getPlayer().stopTrack();
+        handler.skipCurrentTrack();
     }
 }

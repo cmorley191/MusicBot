@@ -15,10 +15,13 @@
  */
 package com.jagrosh.jmusicbot.commands.music;
 
+import com.jagrosh.jdautilities.command.Command;
 import com.jagrosh.jdautilities.command.CommandEvent;
 import com.jagrosh.jmusicbot.Bot;
 import com.jagrosh.jmusicbot.audio.AudioHandler;
+import com.jagrosh.jmusicbot.audio.QueuedTrack;
 import com.jagrosh.jmusicbot.commands.MusicCommand;
+import com.jagrosh.jmusicbot.queue.FairQueue;
 
 /**
  *
@@ -30,28 +33,57 @@ public class ShuffleCmd extends MusicCommand
     {
         super(bot);
         this.name = "shuffle";
+        this.arguments = "[background]";
         this.help = "shuffles songs you have added";
         this.aliases = bot.getConfig().getAliases(this.name);
         this.beListening = true;
         this.bePlaying = true;
+        this.children = new Command[]{new BackgroundCmd(bot)};
     }
 
     @Override
     public void doCommand(CommandEvent event) 
     {
+        doShuffle(bot, event, false);
+    }
+
+    private static void doShuffle(Bot bot, CommandEvent event, boolean background) {
         AudioHandler handler = (AudioHandler)event.getGuild().getAudioManager().getSendingHandler();
-        int s = handler.getQueue().shuffle(event.getAuthor().getIdLong());
+        FairQueue<QueuedTrack> queue = (background) ? handler.getBackgroundQueue() : handler.getQueue();
+        String queueName = (background) ? "the background queue" : "the queue";
+        int s = queue.shuffle(event.getAuthor().getIdLong());
         switch (s) 
         {
             case 0:
-                event.reply(bot.getError(event)+"You don't have any music in the queue to shuffle!");
+                event.reply(bot.getError(event)+"You don't have any music in "+queueName+" to shuffle!");
                 break;
             case 1:
-                event.reply(bot.getWarning(event)+"You only have one song in the queue!");
+                event.reply(bot.getWarning(event)+"You only have one song in "+queueName+"!");
                 break;
             default:
-                event.reply(bot.getSuccess(event)+"You successfully shuffled your "+s+" entries.");
+                event.reply(bot.getSuccess(event)+"Shuffled the "+s+" entries of "+queueName+".");
                 break;
+        }
+    }
+
+    public class BackgroundCmd extends MusicCommand
+    {
+        private static final boolean background = true;
+
+        public BackgroundCmd(Bot bot)
+        {
+            super(bot);
+            this.name = "background";
+            this.aliases = new String[]{"bg", "b", "back"};
+            this.help = "shuffles songs you have added to the background queue";
+            this.beListening = true;
+            this.bePlaying = true;
+        }
+
+        @Override
+        public void doCommand(CommandEvent event) 
+        {
+            doShuffle(bot, event, background);
         }
     }
     

@@ -38,7 +38,7 @@ public class ForceRemoveCmd extends DJCommand
     {
         super(bot);
         this.name = "forceremove";
-        this.help = "removes all entries by a user from the queue";
+        this.help = "removes all entries by a user from the queue and the background queue";
         this.arguments = "<user>";
         this.aliases = bot.getConfig().getAliases(this.name);
         this.beListening = false;
@@ -56,9 +56,9 @@ public class ForceRemoveCmd extends DJCommand
         }
 
         AudioHandler handler = (AudioHandler) event.getGuild().getAudioManager().getSendingHandler();
-        if (handler.getQueue().isEmpty())
+        if (handler.getQueue().isEmpty() && handler.getBackgroundQueue().isEmpty())
         {
-            event.reply(bot.getError(event)+"There is nothing in the queue!");
+            event.reply(bot.getError(event)+"There is nothing in the queues!");
             return;
         }
 
@@ -107,13 +107,14 @@ public class ForceRemoveCmd extends DJCommand
     private void removeAllEntries(User target, CommandEvent event)
     {
         int count = ((AudioHandler) event.getGuild().getAudioManager().getSendingHandler()).getQueue().removeAll(target.getIdLong());
-        if (count == 0)
+        int backgroundCount = ((AudioHandler) event.getGuild().getAudioManager().getSendingHandler()).getBackgroundQueue().removeAll(target.getIdLong());
+        if (count == 0 && backgroundCount == 0)
         {
-            event.reply(bot.getWarning(event)+"**"+target.getName()+"** doesn't have any songs in the queue!");
+            event.reply(bot.getWarning(event)+"**"+target.getName()+"** doesn't have any songs in the queues!");
         }
         else
         {
-            event.reply(bot.getSuccess(event)+"Successfully removed `"+count+"` entries from **"+target.getName()+"**#"+target.getDiscriminator()+".");
+            event.reply(bot.getSuccess(event)+"Successfully removed `"+(count+backgroundCount)+"` entries from **"+target.getName()+"**#"+target.getDiscriminator()+".");
         }
     }
 }

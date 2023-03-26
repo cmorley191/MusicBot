@@ -15,11 +15,13 @@
  */
 package com.jagrosh.jmusicbot.commands.music;
 
+import com.jagrosh.jdautilities.command.Command;
 import com.jagrosh.jdautilities.command.CommandEvent;
 import com.jagrosh.jmusicbot.Bot;
 import com.jagrosh.jmusicbot.audio.AudioHandler;
 import com.jagrosh.jmusicbot.audio.QueuedTrack;
 import com.jagrosh.jmusicbot.commands.MusicCommand;
+import com.jagrosh.jmusicbot.queue.FairQueue;
 import com.jagrosh.jmusicbot.settings.Settings;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.User;
@@ -35,28 +37,35 @@ public class RemoveCmd extends MusicCommand
         super(bot);
         this.name = "remove";
         this.help = "removes a song from the queue";
-        this.arguments = "<position|ALL>";
+        this.arguments = "[background] <position|ALL>";
         this.aliases = bot.getConfig().getAliases(this.name);
         this.beListening = true;
         this.bePlaying = true;
+        this.children = new Command[]{new BackgroundCmd(bot)};
     }
 
     @Override
     public void doCommand(CommandEvent event) 
     {
+        doRemove(bot, event, false);
+    }
+
+    private static void doRemove(Bot bot, CommandEvent event, boolean background) {
         AudioHandler handler = (AudioHandler)event.getGuild().getAudioManager().getSendingHandler();
         if(handler.getQueue().isEmpty())
         {
             event.reply(bot.getError(event)+"There is nothing in the queue!");
             return;
         }
+        FairQueue<QueuedTrack> queue = (background) ? handler.getBackgroundQueue() : handler.getQueue();
+        String queueName = (background) ? "the background queue" : "the queue";
         if(event.getArgs().equalsIgnoreCase("all"))
         {
-            int count = handler.getQueue().removeAll(event.getAuthor().getIdLong());
+            int count = queue.removeAll(event.getAuthor().getIdLong());
             if(count==0)
-                event.reply(bot.getWarning(event)+"You don't have any songs in the queue!");
+                event.reply(bot.getWarning(event)+"You don't have any songs in "+queueName+"!");
             else
-                event.reply(bot.getSuccess(event)+"Successfully removed your "+count+" entries.");
+                event.reply(bot.getSuccess(event)+"Successfully removed your "+count+" entries from "+queueName+".");
             return;
         }
         int pos;
@@ -65,24 +74,24 @@ public class RemoveCmd extends MusicCommand
         } catch(NumberFormatException e) {
             pos = 0;
         }
-        if(pos<1 || pos>handler.getQueue().size())
+        if(pos<1 || pos>queue.size())
         {
-            event.reply(bot.getError(event)+"Position must be a valid integer between 1 and "+handler.getQueue().size()+"!");
+            event.reply(bot.getError(event)+"Position must be a valid integer between 1 and "+queue.size()+"!");
             return;
         }
         Settings settings = event.getClient().getSettingsFor(event.getGuild());
         boolean isDJ = event.getMember().hasPermission(Permission.MANAGE_SERVER);
         if(!isDJ)
             isDJ = event.getMember().getRoles().contains(settings.getRole(event.getGuild()));
-        QueuedTrack qt = handler.getQueue().get(pos-1);
+        QueuedTrack qt = queue.get(pos-1);
         if(qt.getIdentifier()==event.getAuthor().getIdLong())
         {
-            handler.getQueue().remove(pos-1);
-            event.reply(bot.getSuccess(event)+"Removed **"+qt.getTrack().getInfo().title+"** from the queue");
+            queue.remove(pos-1);
+            event.reply(bot.getSuccess(event)+"Removed **"+qt.getTrack().getInfo().title+"** from "+queueName);
         }
         else if(isDJ)
         {
-            handler.getQueue().remove(pos-1);
+            queue.remove(pos-1);
             User u;
             try {
                 u = event.getJDA().getUserById(qt.getIdentifier());
@@ -90,11 +99,32 @@ public class RemoveCmd extends MusicCommand
                 u = null;
             }
             event.reply(bot.getSuccess(event)+"Removed **"+qt.getTrack().getInfo().title
-                    +"** from the queue (requested by "+(u==null ? "someone" : "**"+u.getName()+"**")+")");
+                    +"** from "+queueName+" (requested by "+(u==null ? "someone" : "**"+u.getName()+"**")+")");
         }
         else
         {
             event.reply(bot.getError(event)+"You cannot remove **"+qt.getTrack().getInfo().title+"** because you didn't add it!");
+        }
+    }
+
+    public class BackgroundCmd extends MusicCommand
+    {
+        private static final boolean background = true;
+
+        public BackgroundCmd(Bot bot)
+        {
+            super(bot);
+            this.name = "background";
+            this.aliases = new String[]{"bg", "b", "back"};
+            this.help = "removes a song from the background queue";
+            this.beListening = true;
+            this.bePlaying = true;
+        }
+
+        @Override
+        public void doCommand(CommandEvent event) 
+        {
+            doRemove(bot, event, background);
         }
     }
 }

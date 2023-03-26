@@ -51,6 +51,9 @@ public class AudioHandler extends AudioEventAdapter implements AudioSendHandler
     public final static String STOP_EMOJI  = "\u23F9"; // ⏹
     
     private final FairQueue<QueuedTrack> queue = new FairQueue<>();
+    private final FairQueue<QueuedTrack> backgroundQueue = new FairQueue<>();
+    private       AudioTrack latestActiveBackgroundTrack = null;
+    private       Long latestActiveBackgroundTrackPosition = 0L;
     private final List<AudioTrack> defaultQueue = new LinkedList<>();
     private final Set<String> votes = new HashSet<>();
     
@@ -67,42 +70,67 @@ public class AudioHandler extends AudioEventAdapter implements AudioSendHandler
         this.guildId = guild.getIdLong();
     }
 
-    public int addTrackToFront(QueuedTrack qtrack)
+    public int addTrack(QueuedTrack qtrack, boolean background, Integer position)
     {
-        if(audioPlayer.getPlayingTrack()==null)
+        boolean playingBackground = audioPlayer.getPlayingTrack()==latestActiveBackgroundTrack;
+        boolean playNow = position != null && position < 0;
+        if(audioPlayer.getPlayingTrack()==null || (playingBackground && (!background || playNow)) || (!background && playNow))
         {
-            audioPlayer.playTrack(qtrack.getTrack());
+            AudioTrack track = qtrack.getTrack();
+            if (background) latestActiveBackgroundTrack = track;
+            else if (latestActiveBackgroundTrack != null) latestActiveBackgroundTrackPosition = latestActiveBackgroundTrack.getPosition();
+            audioPlayer.playTrack(track);
             return -1;
         }
-        else
+        else if (background)
         {
-            queue.addAt(0, qtrack);
-            return 0;
+            if (position == null) return backgroundQueue.add(qtrack);
+            else {
+                if (position < 0) position = 0;
+                return backgroundQueue.addAt(position, qtrack);
+            }
+        } 
+        else 
+        {
+            if (position == null) return queue.add(qtrack);
+            return queue.addAt(position, qtrack);
         }
     }
     
-    public int addTrack(QueuedTrack qtrack)
+    public int addTrack(QueuedTrack qtrack, boolean background)
     {
-        if(audioPlayer.getPlayingTrack()==null)
-        {
-            audioPlayer.playTrack(qtrack.getTrack());
-            return -1;
+        return addTrack(qtrack, background, null);
+    }
+
+    public void skipCurrentTrack() {
+        if (audioPlayer.getPlayingTrack() == latestActiveBackgroundTrack) {
+            latestActiveBackgroundTrack = null;
         }
-        else
-            return queue.add(qtrack);
+        audioPlayer.stopTrack();
     }
     
     public FairQueue<QueuedTrack> getQueue()
     {
         return queue;
     }
+
+    public FairQueue<QueuedTrack> getBackgroundQueue()
+    {
+        return backgroundQueue;
+    }
+
+    public boolean playingFromBackgroundQueue() 
+    {
+        return audioPlayer.getPlayingTrack() != null && latestActiveBackgroundTrack != null && audioPlayer.getPlayingTrack() == latestActiveBackgroundTrack;
+    }
     
     public void stopAndClear()
     {
         queue.clear();
+        backgroundQueue.clear();
+        latestActiveBackgroundTrack = null;
         defaultQueue.clear();
         audioPlayer.stopTrack();
-        //current = null;
     }
     
     public boolean isMusicPlaying(JDA jda)
@@ -128,6 +156,25 @@ public class AudioHandler extends AudioEventAdapter implements AudioSendHandler
         return rm == null ? RequestMetadata.EMPTY : rm;
     }
     
+    public boolean playFromBackground()
+    {
+        if (latestActiveBackgroundTrack != null) {
+            latestActiveBackgroundTrack = latestActiveBackgroundTrack.makeClone();
+            latestActiveBackgroundTrack.setPosition(latestActiveBackgroundTrackPosition);
+            audioPlayer.playTrack(latestActiveBackgroundTrack);
+            return true;
+        }
+
+        if (!backgroundQueue.isEmpty()) 
+        {
+            latestActiveBackgroundTrack = backgroundQueue.remove(0).getTrack();
+            audioPlayer.playTrack(latestActiveBackgroundTrack);
+            return true;
+        }
+
+        return false;
+    }
+
     public boolean playFromDefault()
     {
         if(!defaultQueue.isEmpty())
@@ -142,7 +189,7 @@ public class AudioHandler extends AudioEventAdapter implements AudioSendHandler
         Playlist pl = manager.getBot().getPlaylistLoader().getPlaylist(settings.getDefaultPlaylist());
         if(pl==null || pl.getItems().isEmpty())
             return false;
-        pl.loadTracks(manager, (at) -> 
+        pl.loadTracks(manager, (at, i) -> 
         {
             if(audioPlayer.getPlayingTrack()==null)
                 audioPlayer.playTrack(at);
@@ -165,15 +212,22 @@ public class AudioHandler extends AudioEventAdapter implements AudioSendHandler
         if(endReason==AudioTrackEndReason.FINISHED && repeatMode != RepeatMode.OFF)
         {
             QueuedTrack clone = new QueuedTrack(track.makeClone(), track.getUserData(RequestMetadata.class));
+            FairQueue<QueuedTrack> trackQueue = (track == latestActiveBackgroundTrack) ? backgroundQueue : queue;
             if(repeatMode == RepeatMode.ALL)
-                queue.add(clone);
+                trackQueue.add(clone);
             else
-                queue.addAt(0, clone);
+                trackQueue.addAt(0, clone);
+        }
+
+        if (track == latestActiveBackgroundTrack && endReason != AudioTrackEndReason.REPLACED) {
+            // when background track is replaced by a queue track, we keep it around. Otherwise, this track is over.
+            latestActiveBackgroundTrack = null;
+            // note that REPLACED is *also* used when the track is skipped, but skipTrack() makes sure we don't keep it around in that case.
         }
         
-        if(queue.isEmpty())
+        if(queue.isEmpty() && endReason!=AudioTrackEndReason.REPLACED)
         {
-            if(!playFromDefault())
+            if(!playFromBackground() && !playFromDefault())
             {
                 manager.getBot().getNowplayingHandler().onTrackUpdate(guildId, null, this);
                 if(!manager.getBot().getConfig().getStay())
@@ -183,7 +237,7 @@ public class AudioHandler extends AudioEventAdapter implements AudioSendHandler
                 player.setPaused(false);
             }
         }
-        else
+        else if (endReason.mayStartNext)
         {
             QueuedTrack qt = queue.pull();
             player.playTrack(qt.getTrack());
@@ -206,7 +260,7 @@ public class AudioHandler extends AudioEventAdapter implements AudioSendHandler
             Guild guild = guild(jda);
             AudioTrack track = audioPlayer.getPlayingTrack();
             MessageBuilder mb = new MessageBuilder();
-            mb.append(FormatUtil.filter(manager.getBot().getConfig().getSuccess()+" **Now Playing in "+guild.getSelfMember().getVoiceState().getChannel().getAsMention()+"...**"));
+            mb.append(FormatUtil.filter(manager.getBot().getConfig().getSuccess()+" **Now Playing from "+(playingFromBackgroundQueue() ? "Background Queue" : "Queue")+" in "+guild.getSelfMember().getVoiceState().getChannel().getAsMention()+"...**"));
             EmbedBuilder eb = new EmbedBuilder();
             eb.setColor(guild.getSelfMember().getColor());
             RequestMetadata rm = getRequestMetadata();

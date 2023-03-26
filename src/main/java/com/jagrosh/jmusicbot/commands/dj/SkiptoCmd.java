@@ -57,6 +57,6 @@ public class SkiptoCmd extends DJCommand
         }
         handler.getQueue().skip(index-1);
         event.reply(bot.getSuccess(event)+" Skipped to **"+handler.getQueue().get(0).getTrack().getInfo().title+"**");
-        handler.getPlayer().stopTrack();
+        handler.skipCurrentTrack();
     }
 }

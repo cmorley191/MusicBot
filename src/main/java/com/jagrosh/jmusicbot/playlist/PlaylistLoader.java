@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -155,7 +156,7 @@ public class PlaylistLoader
             this.shuffle = shuffle;
         }
         
-        public void loadTracks(AudioPlayerManager manager, Consumer<AudioTrack> consumer, Runnable callback)
+        public void loadTracks(AudioPlayerManager manager, BiConsumer<AudioTrack, Integer> consumer, Runnable callback)
         {
             if(loaded)
                 return;
@@ -186,7 +187,7 @@ public class PlaylistLoader
                         {
                             at.setUserData(0L);
                             tracks.add(at);
-                            consumer.accept(at);
+                            consumer.accept(at, index);
                         }
                         done();
                     }
@@ -216,7 +217,10 @@ public class PlaylistLoader
                             loaded.removeIf(track -> config.isTooLong(track));
                             loaded.forEach(at -> at.setUserData(0L));
                             tracks.addAll(loaded);
-                            loaded.forEach(at -> consumer.accept(at));
+                            
+                            for (int i = 0; i < loaded.size(); i++) {
+                                consumer.accept(loaded.get(i), i);
+                            }
                         }
                         done();
                     }

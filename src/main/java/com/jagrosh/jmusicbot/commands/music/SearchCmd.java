@@ -90,7 +90,7 @@ public class SearchCmd extends MusicCommand
                 return;
             }
             AudioHandler handler = (AudioHandler)event.getGuild().getAudioManager().getSendingHandler();
-            int pos = handler.addTrack(new QueuedTrack(track, event.getAuthor()))+1;
+            int pos = handler.addTrack(new QueuedTrack(track, event.getAuthor()), false)+1;
             m.editMessage(FormatUtil.filter(bot.getSuccess(event)+" Added **"+track.getInfo().title
                     +"** (`"+FormatUtil.formatTime(track.getDuration())+"`) "+(pos==0 ? "to begin playing" 
                         : " to the queue at position "+pos))).queue();
@@ -112,7 +112,7 @@ public class SearchCmd extends MusicCommand
                             return;
                         }
                         AudioHandler handler = (AudioHandler)event.getGuild().getAudioManager().getSendingHandler();
-                        int pos = handler.addTrack(new QueuedTrack(track, event.getAuthor()))+1;
+                        int pos = handler.addTrack(new QueuedTrack(track, event.getAuthor()), false)+1;
                         event.reply(bot.getSuccess(event)+"Added **" + FormatUtil.filter(track.getInfo().title)
                                 + "** (`" + FormatUtil.formatTime(track.getDuration()) + "`) " + (pos==0 ? "to begin playing" 
                                     : " to the queue at position "+pos));

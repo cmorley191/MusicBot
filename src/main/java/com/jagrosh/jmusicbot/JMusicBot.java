@@ -115,6 +115,7 @@ public class JMusicBot
                         new RemoveCmd(bot),
                         new SearchCmd(bot),
                         new SCSearchCmd(bot),
+                        new SeekCmd(bot),
                         new ShuffleCmd(bot),
                         new SkipCmd(bot),
 
@@ -122,7 +123,6 @@ public class JMusicBot
                         new ForceskipCmd(bot),
                         new MoveTrackCmd(bot),
                         new PauseCmd(bot),
-                        new PlaynextCmd(bot),
                         new RepeatCmd(bot),
                         new SkiptoCmd(bot),
                         new StopCmd(bot),

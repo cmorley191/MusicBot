@@ -47,12 +47,18 @@ public class FairQueue<T extends Queueable> {
         return lastIndex;
     }
     
-    public void addAt(int index, T item)
+    public int addAt(int index, T item)
     {
-        if(index >= list.size())
+        if(index >= list.size()) 
+        {
             list.add(item);
+            return list.size() - 1;
+        }
         else
+        {
             list.add(index, item);
+            return index;
+        }
     }
     
     public int size()
