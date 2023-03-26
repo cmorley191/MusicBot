@@ -159,13 +159,13 @@ def main(hardcoded_version_tag):
   assert latest_version_tag.strip() != "", f"Could not find a valid release version tag at {url_latest} -> {url_latest_tag}"
 
   if hardcoded_version_tag is None or latest_version_tag == hardcoded_version_tag:
-    print(f"Installer version is latest version: {latest_version_tag}")
+    print(f"Installer version is latest stable version: {latest_version_tag}")
   else:
-    print(f"Installer version {hardcoded_version_tag} does not match latest version {latest_version_tag}")
+    print(f"Installer version {hardcoded_version_tag} does not match latest stable version {latest_version_tag}")
   print(f"What would you like to do? Options:")
   if hardcoded_version_tag is not None and latest_version_tag != hardcoded_version_tag:
     print(f"Install installer version {hardcoded_version_tag} (I)")
-  print(f"Install latest version {latest_version_tag} (L)")
+  print(f"Install latest stable version {latest_version_tag} (L)")
   print(f"Enter other version to install (O)")
   print(f"Abort without installing (A)")
   entry = input().lower()
@@ -175,8 +175,8 @@ def main(hardcoded_version_tag):
   ]):
     install(hardcoded_version_tag)
   elif (re.split(r'\s+', entry.lower()) in [
-    ["l"],
-    *flatten([[*x, *y, *z] for x in [[], ["instal"], ["install"]] for y in [["latest"]] for z in [[], ["version"]]]),
+    ["l"], ["s"], ["ls"],
+    *flatten([[*x, *y, *z] for x in [[], ["instal"], ["install"]] for y in [["latest"], ["stable"], ["latest", "stable"]] for z in [[], ["version"]]]),
   ]):
     install(latest_version_tag)
   elif (re.split(r'\s+', entry.lower()) in [
