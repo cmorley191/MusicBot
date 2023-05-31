@@ -250,7 +250,7 @@ public class SeekCmd extends MusicCommand {
     } else if (timeString.startsWith("-")) {
       return new long[] { 1, -time };
     } else {
-      return new long[] { 0, -time };
+      return new long[] { 0, time };
     }
   }
 
