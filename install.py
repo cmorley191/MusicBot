@@ -35,11 +35,13 @@ def install(version_tag):
     f"jmusicbot-{version_tag.lower()}.jar",
     f"jmusicbot-all.jar",
     f"jmusicbot-snapshot-all.jar",
+    f"jmusicbot.jar",
   ]
   jar_filenames = [
     *[f"cmorley191-{x}" for x in jar_filenames],
     *jar_filenames,
   ]
+  jar_filenames = [x.lower() for x in jar_filenames]
   
   urls_version_download = [
     f"{url_download}/{version_tag}/cmorley191_jmusicbot_{version_tag}.zip",
