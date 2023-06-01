@@ -272,7 +272,8 @@ public class SeekCmd extends MusicCommand {
       return;
     }
 
-    long targetTimeMs = track.getPosition();
+    long originalPosition = track.getPosition();
+    long targetTimeMs = originalPosition;
     if (direction == 0) {
       targetTimeMs = timeMs;
     } else if (direction > 0) {
@@ -301,7 +302,7 @@ public class SeekCmd extends MusicCommand {
 
     track.setPosition(targetTimeMs);
     if (direction == 0) {
-      event.reply(bot.getSuccess(event)+" "+(targetTimeMs > track.getPosition() ? "Fast forwarded" : "Rewound")+" to `"+timeMsToFriendlyOutputTimestampString(targetTimeMs)+"`.");
+      event.reply(bot.getSuccess(event)+" "+(targetTimeMs > originalPosition ? "Fast forwarded" : "Rewound")+" to `"+timeMsToFriendlyOutputTimestampString(targetTimeMs)+"`.");
     } else {
       event.reply(bot.getSuccess(event)+" "+(direction > 0 ? "Fast forwarded" : "Rewound")+" "+timeMsToFriendlyOutputDurationString(timeMs)+" to `"+timeMsToFriendlyOutputTimestampString(targetTimeMs)+"`.");
     }
